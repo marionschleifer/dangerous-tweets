@@ -1,16 +1,20 @@
-dangerous-tweets
+# dangerous-tweets
+
+```bash
 # create a react app
 npx create-react-app dangerous-tweets
 cd dangerous-tweets
 
 # install dependencies
 npm install --save graphql graphql-tag @apollo/react-hooks apollo-client apollo-link-ws subscriptions-transport-ws apollo-cache-inmemory
-Create a Hasura server on Heroku: heroku.com/deploy?template=https://github.com/hasura/graphql-engine-heroku
+```
+
+Create a Hasura server on Heroku: https://heroku.com/deploy?template=https://github.com/hasura/graphql-engine-heroku
 
 View the app, it opens Hasura console.
 
 Create a table:
-
+```
 Table name: tweets
 Columns:
 - id        | type: uuid, default: gen_random_uuid()
@@ -18,18 +22,23 @@ Columns:
 - sanitized | type: text, nullable
 
 Primary key: id
-Copy the Heroku app url: <you-app-name>.herokuapp.com
+```
 
-Remix the Glitch project glitch.com/edit/#!/pitch-waste and replace endpoint with your heroku app.
+Copy the Heroku app url: `<you-app-name>.herokuapp.com`
+
+Remix the Glitch project https://glitch.com/edit/#!/pitch-waste and replace endpoint with your heroku app.
 
 Create an event trigger:
 
+```
 Trigger name: santize
 Schema/Table: public tweets
 Trigger operations: Insert
 Webhook URL: https://pitch-waste.glitch.me/ (your glitch url)
-Setup Apollo client:
+```
 
+Setup Apollo client:
+```js
 // index.js
 
 import React from 'react';
@@ -60,8 +69,10 @@ ReactDOM.render(
   </ApolloProvider>),
   document.getElementById('root')
 );
-Create DangerouslyTweet.js:
+```
 
+Create `DangerouslyTweet.js`:
+```jsx
 // DangerouslyTweet.js
 
 import React from 'react';
@@ -117,8 +128,10 @@ const DangerouslyTweet = () => {
 };
 
 export default DangerouslyTweet;
-Create TweetStatus.js:
+```
 
+Create `TweetStatus.js`:
+```jsx
 // TweetStatus.js
 
 import React from 'react';
@@ -162,8 +175,10 @@ const TweetStatus = ({ id }) => {
 };
 
 export default TweetStatus;
-Edit App.js:
+```
 
+Edit `App.js`:
+```jsx
 // App.js
 
 import React from 'react';
@@ -182,6 +197,9 @@ function App() {
 }
 
 export default App;
-Run the app:
+```
 
+Run the app:
+```bash
 npm start
+```
