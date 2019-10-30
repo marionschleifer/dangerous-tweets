@@ -1,68 +1,187 @@
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+dangerous-tweets
+# create a react app
+npx create-react-app dangerous-tweets
+cd dangerous-tweets
 
-## Available Scripts
+# install dependencies
+npm install --save graphql graphql-tag @apollo/react-hooks apollo-client apollo-link-ws subscriptions-transport-ws apollo-cache-inmemory
+Create a Hasura server on Heroku: heroku.com/deploy?template=https://github.com/hasura/graphql-engine-heroku
 
-In the project directory, you can run:
+View the app, it opens Hasura console.
 
-### `yarn start`
+Create a table:
 
-Runs the app in the development mode.<br />
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+Table name: tweets
+Columns:
+- id        | type: uuid, default: gen_random_uuid()
+- raw       | type: text
+- sanitized | type: text, nullable
 
-The page will reload if you make edits.<br />
-You will also see any lint errors in the console.
+Primary key: id
+Copy the Heroku app url: <you-app-name>.herokuapp.com
 
-### `yarn test`
+Remix the Glitch project glitch.com/edit/#!/pitch-waste and replace endpoint with your heroku app.
 
-Launches the test runner in the interactive watch mode.<br />
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Create an event trigger:
 
-### `yarn build`
+Trigger name: santize
+Schema/Table: public tweets
+Trigger operations: Insert
+Webhook URL: https://pitch-waste.glitch.me/ (your glitch url)
+Setup Apollo client:
 
-Builds the app for production to the `build` folder.<br />
-It correctly bundles React in production mode and optimizes the build for the best performance.
+// index.js
 
-The build is minified and the filenames include the hashes.<br />
-Your app is ready to be deployed!
+import React from 'react';
+import ReactDOM from 'react-dom';
+import './index.css';
+import App from './App';
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+import { ApolloClient } from 'apollo-client';
+import { InMemoryCache } from 'apollo-cache-inmemory';
+import { WebSocketLink } from 'apollo-link-ws';
 
-### `yarn eject`
+import { ApolloProvider } from '@apollo/react-hooks';
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+const client = new ApolloClient({
+  link: new WebSocketLink({
+    // replace with your heroku app name
+    uri: `wss://skm-test.herokuapp.com/v1/graphql`,
+    options: {
+      reconnect: true
+    }
+  }),
+  cache: new InMemoryCache()
+});
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+ReactDOM.render(
+  (<ApolloProvider client={client}>
+    <App />
+  </ApolloProvider>),
+  document.getElementById('root')
+);
+Create DangerouslyTweet.js:
 
-Instead, it will copy all the configuration files and the transitive dependencies (Webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+// DangerouslyTweet.js
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+import React from 'react';
 
-## Learn More
+import TweetStatus from './TweetStatus';
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+import gql from 'graphql-tag';
+import { useMutation } from '@apollo/react-hooks';
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+const ADD_TWEET = gql`
+  mutation ($raw: String!) {
+    insert_tweets(objects:[{raw: $raw}]) {
+      returning {
+        id
+      }
+    }
+  }
+`;
 
-### Code Splitting
+const DangerouslyTweet = () => {
+  let input;
+  const [addTweet, { data, loading, error }] = useMutation(ADD_TWEET);
 
-This section has moved here: https://facebook.github.io/create-react-app/docs/code-splitting
+  if (data) {
+    /* return (<span>Dispatched!</span>); */
+    return (<TweetStatus id={data.insert_tweets.returning[0].id} />);
+  }
+  if (loading) {
+    return (<span>Loading...</span>);
+  }
+  if (error) {
+    return (<span>{error.toString()}</span>);
+  }
+  return (
+    <form
+      onSubmit={e => {
+        e.preventDefault();
+        addTweet({ variables: { raw: input.value } });
+        input.value = "";
+      }}
+    >
+      <textarea
+        style={{fontSize: 'calc(10px + 2vmin)'}}
+        ref={node => {
+          input = node;
+        }}
+      />
+      <br/>
+      <button style={{fontSize: 'calc(10px + 2vmin)', padding: '10px'}}
+              type="submit">__dangerouslyTweet()</button>
+    </form>
+  )
+};
 
-### Analyzing the Bundle Size
+export default DangerouslyTweet;
+Create TweetStatus.js:
 
-This section has moved here: https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size
+// TweetStatus.js
 
-### Making a Progressive Web App
+import React from 'react';
 
-This section has moved here: https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app
+import gql from 'graphql-tag';
+import { useSubscription } from '@apollo/react-hooks';
 
-### Advanced Configuration
+const TWEET_STATUS = gql`
+  subscription tweetStatus($id: uuid!) {
+    tweets(where:{id: {_eq: $id}}) {
+      id
+      sanitized
+    }
+  }
+`;
 
-This section has moved here: https://facebook.github.io/create-react-app/docs/advanced-configuration
+const TweetStatus = ({ id }) => {
+  const { data, loading, error } = useSubscription(TWEET_STATUS, { variables : { id }});
 
-### Deployment
+  if (loading) {
+    return (<span>Loading...</span>);
+  }
+  if (error) {
+    return (<span>{error.toString()}</span>);
+  }
 
-This section has moved here: https://facebook.github.io/create-react-app/docs/deployment
+  if (!data || !data.tweets[0].sanitized) {
+    return (<span>
+      <img alt ="cleaning" src="https://i.giphy.com/media/TG9ko7uVhkkde2eVAU/giphy.webp" />
+    </span>);
+  }
 
-### `yarn build` fails to minify
+  if (data && data.tweets[0].sanitized) {
+    const sanitized = data.tweets[0].sanitized;
+    return (<div>
+      {sanitized}
+      <br/><br/>
+      <img alt="innocent" src="https://i.giphy.com/media/l3nSxBDg5obIiU9Ko/giphy.webp" />
+    </div>);
+  }
+};
 
-This section has moved here: https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify
+export default TweetStatus;
+Edit App.js:
+
+// App.js
+
+import React from 'react';
+import './App.css';
+
+import DangerouslyTweet from './DangerouslyTweet'
+
+function App() {
+  return (
+    <div className="App">
+      <header className="App-header">
+        <DangerouslyTweet />
+      </header>
+    </div>
+  );
+}
+
+export default App;
+Run the app:
+
+npm start
