@@ -26,7 +26,7 @@ Primary key: id
 
 Copy the Heroku app url: `<you-app-name>.herokuapp.com`
 
-Remix the Glitch project https://glitch.com/edit/#!/pitch-waste and replace endpoint with your heroku app.
+Remix the Glitch project glitch.com/edit/#!/calm-novel and replace endpoint with your heroku app.
 
 Create an event trigger:
 
